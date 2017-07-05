@@ -1,0 +1,413 @@
+package image;
+
+import java.awt.BorderLayout;
+import java.awt.Canvas;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FileDialog;
+import java.awt.FlowLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Date;
+import javax.imageio.ImageIO;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JSlider;
+import javax.swing.border.LineBorder;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+
+public class Histogram extends JFrame
+  implements ChangeListener, ActionListener
+{
+  public static final int WIDTH = 980;
+  public static final int HEIGHT = 500;
+  public static final int PWIDTH = 350;
+  public static final int PHEIGHT = 300;
+  public static final int H_WIDTH = 350;
+  public static final int H_HEIGHT = 300;
+  public static final int JS_MAXIMUM = 100;
+  public static final String FRAMTITLE = "交通监控画面特效处理器";
+  private String imgSrc;
+  Image img;
+  JSlider jsliderH;
+  JSlider jsliderV;
+  JPanel uP;
+  JPanel picP;
+  JPanel uplodP;
+  JPanel histP;
+  JButton openFile;
+  JButton threshold;
+  JButton graypic;
+  JButton negatives;
+  JButton emboss;
+  JButton histogram;
+  MyCanvas canvas;
+  Canvas histCanvas;
+  int imgW = 350; int imgH = 300;
+  int xcentre = 175; int ycentre = 150;
+  private int dx1 = this.xcentre - this.imgW / 2; private int dy1 = this.ycentre - this.imgH / 2; private int dx2 = this.xcentre + this.imgW / 2; private int dy2 = this.ycentre + this.imgH / 2;
+  private int sx1 = 0; private int sy1 = 0;
+  private int sx2;
+  private int sy2;
+  private float shx = 0.0F; private float shy = 0.0F;
+
+  public Histogram()
+  {
+    setTitle("交通监控画面特效处理器");
+    launchDialog();
+  }
+
+  public Canvas getCanvas()
+  {
+    return this.canvas;
+  }
+
+  private void launchDialog()
+  {
+    this.imgSrc = "F:\\image processing\\baboom2_gray.jpg";
+    this.img = Toolkit.getDefaultToolkit().getImage(this.imgSrc);
+
+    this.canvas = new MyCanvas();
+    this.jsliderH = new JSlider();
+    this.jsliderH.setMaximum(100);
+    this.jsliderH.setValue(100);
+    this.jsliderH.setMinimum(1);
+    this.jsliderH.setOrientation(0);
+    this.jsliderH.addChangeListener(this);
+    this.jsliderV = new JSlider();
+    this.jsliderV.setMaximum(100);
+    this.jsliderV.setValue(100);
+    this.jsliderV.setMinimum(1);
+    this.jsliderV.setOrientation(1);
+    this.jsliderV.addChangeListener(this);
+    this.picP = new JPanel();
+    this.picP.setPreferredSize(new Dimension(350, 300));
+
+    this.uP = new JPanel();
+    this.uplodP = new JPanel();
+    this.openFile = new JButton("打开图片");
+    this.negatives = new JButton("显示底片图像");
+    this.threshold = new JButton("显示黑白图像");
+    this.graypic = new JButton("显示灰度图像");
+    this.emboss = new JButton("显示浮雕图像");
+    this.histogram = new JButton("灰度直方计算");
+
+    this.openFile.addActionListener(this);
+    this.threshold.addActionListener(this);
+    this.graypic.addActionListener(this);
+    this.negatives.addActionListener(this);
+    this.emboss.addActionListener(this);
+    this.histogram.addActionListener(this);
+
+    this.picP.setLayout(new BorderLayout());
+    this.picP.add(this.canvas, "Center");
+    this.uP.setLayout(new BorderLayout());
+    this.uP.add(this.picP, "Center");
+    this.uP.add(this.jsliderH, "South");
+    this.uP.add(this.jsliderV, "East");
+
+    this.histCanvas = new Canvas();
+    this.histP = new JPanel(new BorderLayout());
+    this.histP.add(this.histCanvas);
+    this.histP.setPreferredSize(new Dimension(350, 300));
+    this.histP.setBorder(new LineBorder(Color.blue));
+
+    this.uplodP.setLayout(new FlowLayout());
+    this.uplodP.add(this.openFile);
+    this.uplodP.add(this.threshold);
+    this.uplodP.add(this.graypic);
+    this.uplodP.add(this.negatives);
+    this.uplodP.add(this.emboss);
+    this.uplodP.add(this.histogram);
+
+    Container c = getContentPane();
+    c.setLayout(new BoxLayout(c, 1));
+
+    JPanel p = new JPanel();
+    p.setLayout(new BoxLayout(p, 0));
+    p.add(this.uP);
+    p.add(this.histP);
+    c.add(p);
+    c.add(this.uplodP);
+    setSize(980, 500);
+    setResizable(false);
+    setLocationRelativeTo(null);
+    setDefaultCloseOperation(2);
+    setVisible(true);
+  }
+
+  public void threshold(int threshold) {
+    try {
+      BufferedImage bfImg = ImageIO.read(new File(this.imgSrc));
+      int w = bfImg.getWidth();
+      int h = bfImg.getHeight();
+      int[] pix = new int[w * h];
+
+      int imgType = bfImg.getType();
+      bfImg.getRGB(0, 0, w, h, pix, 0, w);
+      int max = 0;
+      ColorModel cm = ColorModel.getRGBdefault();
+      for (int i = 0; i < pix.length; i++)
+      {
+        if (cm.getRed(pix[i]) <= threshold)
+          pix[i] = new Color(255, 255, 255).getRGB();
+        else {
+          pix[i] = new Color(0, 0, 0).getRGB();
+        }
+      }
+      bfImg.setRGB(0, 0, w, h, pix, 0, w);
+
+      Graphics g = this.histCanvas.getGraphics();
+      g.clearRect(0, 0, 350, 300);
+      Color c = g.getColor();
+      g.drawImage(bfImg, this.dx1, this.dy1, this.dx2, this.dy2, this.sx1, this.sy1, this.sx2, this.sy2, this);
+      g.setColor(c);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void graypic() {
+    try {
+      BufferedImage bfImg = ImageIO.read(new File(this.imgSrc));
+      int w = bfImg.getWidth();
+      int h = bfImg.getHeight();
+      int[] pix = new int[w * h];
+
+      int imgType = bfImg.getType();
+      bfImg.getRGB(0, 0, w, h, pix, 0, w);
+      int max = 255;
+      ColorModel cm = ColorModel.getRGBdefault();
+      for (int i = 0; i < pix.length; i++) {
+        int avg = (cm.getRed(pix[i]) + cm.getGreen(pix[i]) + cm.getBlue(pix[i])) / 3;
+        if (avg > max)
+        {
+          avg = max;
+        }
+        pix[i] = new Color(avg, avg, avg).getRGB();
+      }
+      bfImg.setRGB(0, 0, w, h, pix, 0, w);
+
+      Graphics g = this.histCanvas.getGraphics();
+      g.clearRect(0, 0, 350, 300);
+      Color c = g.getColor();
+      g.drawImage(bfImg, this.dx1, this.dy1, this.dx2, this.dy2, this.sx1, this.sy1, this.sx2, this.sy2, this);
+      g.setColor(c);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void negatives() {
+    try {
+      BufferedImage bfImg = ImageIO.read(new File(this.imgSrc));
+      int w = bfImg.getWidth();
+      int h = bfImg.getHeight();
+      int[] pix = new int[w * h];
+
+      int imgType = bfImg.getType();
+      bfImg.getRGB(0, 0, w, h, pix, 0, w);
+      int max = 255;
+      ColorModel cm = ColorModel.getRGBdefault();
+      for (int i = 0; i < pix.length; i++) {
+        int r = 255 - cm.getRed(pix[i]);
+        int g = 255 - cm.getGreen(pix[i]);
+        int b = 255 - cm.getBlue(pix[i]);
+        pix[i] = new Color(r, g, b).getRGB();
+      }
+      bfImg.setRGB(0, 0, w, h, pix, 0, w);
+
+      Graphics g = this.histCanvas.getGraphics();
+      g.clearRect(0, 0, 350, 300);
+      Color c = g.getColor();
+      g.drawImage(bfImg, this.dx1, this.dy1, this.dx2, this.dy2, this.sx1, this.sy1, this.sx2, this.sy2, this);
+      g.setColor(c);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void emboss() {
+    try { BufferedImage bfImg = ImageIO.read(new File(this.imgSrc));
+      int w = bfImg.getWidth();
+      int h = bfImg.getHeight();
+      int[] pix = new int[w * h];
+
+      int imgType = bfImg.getType();
+      bfImg.getRGB(0, 0, w, h, pix, 0, w);
+      int max = 255;
+      ColorModel cm = ColorModel.getRGBdefault();
+      for (int i = 0; i < pix.length - 1; i++) {
+        int r = cm.getRed(pix[i]) - cm.getRed(pix[(i + 1)]) + 110;
+        int g = cm.getGreen(pix[i]) - cm.getGreen(pix[(i + 1)]) + 110;
+        int b = cm.getBlue(pix[i]) - cm.getBlue(pix[(i + 1)]) + 110;
+        if (r >= max)
+          r = max;
+        if (g >= max)
+          g = max;
+        if (b >= max)
+          b = max;
+        if (r <= 0)
+          r = 1;
+        if (g <= 0)
+          g = 1;
+        if (b <= 0)
+          b = 1;
+        pix[i] = new Color(r, g, b).getRGB();
+      }
+
+      bfImg.setRGB(0, 0, w, h, pix, 0, w);
+
+      Graphics g = this.histCanvas.getGraphics();
+      g.clearRect(0, 0, 980, 500);
+      Color c = g.getColor();
+      g.drawImage(bfImg, this.dx1, this.dy1, this.dx2, this.dy2, this.sx1, this.sy1, this.sx2, this.sy2, this);
+      g.setColor(c);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void drawHistogram() {
+    try {
+      BufferedImage bfImg = ImageIO.read(new File(this.imgSrc));
+      int w = bfImg.getWidth();
+      int h = bfImg.getHeight();
+      int[] pix = new int[w * h];
+      int[] hist = new int[256];
+      int imgType = bfImg.getType();
+
+      bfImg.getRGB(0, 0, w, h, pix, 0, w);
+      ColorModel cm = ColorModel.getRGBdefault();
+      for (int i = 0; i < pix.length; i++) {
+        int temp = cm.getRed(pix[i]);
+        hist[temp] += 1;
+      }
+      System.out.println(hist.length);
+      int max = 0;
+      for (int i = 0; i < hist.length; i++) {
+        if (hist[i] > max) {
+          max = hist[i];
+        }
+      }
+      for (int i = 0; i < hist.length; i++) {
+        hist[i] = ((int)(hist[i] / max * 250.0F));
+      }
+      Graphics g = this.histCanvas.getGraphics();
+      Color c = g.getColor();
+      g.setColor(Color.red);
+      g.drawLine(10, 290, 320, 290);
+      g.drawLine(315, 285, 320, 290);
+      g.drawLine(315, 295, 320, 290);
+      g.drawString("   灰度级", 270, 300);
+      g.drawLine(10, 290, 10, 10);
+      g.drawLine(5, 15, 10, 10);
+      g.drawLine(15, 15, 10, 10);
+      g.drawString("像素个数", 15, 15);
+      g.setColor(Color.black);
+      for (int i = 0; i < hist.length; i++) {
+        g.drawLine(10 + i, 290, 10 + i, 290 - hist[i]);
+        if (i % 30 == 0) {
+          g.drawString(i, 10 + i, 300);
+        }
+      }
+      g.setColor(c);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  public void actionPerformed(ActionEvent e)
+  {
+    if (e.getSource() == this.openFile) {
+      FileDialog openFileDialog = new FileDialog(this, "打开图片");
+      openFileDialog.setMode(0);
+      openFileDialog.setFile("*.jpg;*.jpeg;*.gif;*.png;*.bmp;*.tif;");
+
+      openFileDialog.setVisible(true);
+      String fileName = openFileDialog.getFile();
+      String directory = openFileDialog.getDirectory();
+      if (fileName != null) {
+        this.imgSrc = (directory + fileName);
+        this.img = Toolkit.getDefaultToolkit().getImage(this.imgSrc);
+        this.histCanvas.repaint();
+      } else {
+        JOptionPane.showMessageDialog(this, "请选择图片!");
+      }
+    } else if (e.getSource() == this.threshold) {
+      threshold(65);
+    } else if (e.getSource() == this.graypic) {
+      graypic();
+    } else if (e.getSource() == this.negatives) {
+      negatives();
+    }
+    else if (e.getSource() == this.emboss) {
+      emboss();
+    } else if (e.getSource() == this.histogram) {
+      System.out.println(new Date());
+      drawHistogram();
+      System.out.println(new Date());
+    }
+  }
+
+  public void stateChanged(ChangeEvent e)
+  {
+    if (e.getSource() == this.jsliderH) {
+      float valueH = this.jsliderH.getValue();
+      this.imgW = ((int)(700.0F * (valueH / 100.0F)));
+      if (this.imgW < 87) {
+        this.imgW = 87;
+      }
+      this.dx1 = (this.xcentre - this.imgW / 2);
+      this.dy1 = (this.ycentre - this.imgH / 2);
+      this.dx2 = (this.xcentre + this.imgW / 2);
+      this.dy2 = (this.ycentre + this.imgH / 2);
+      this.canvas.repaint();
+    } else if (e.getSource() == this.jsliderV) {
+      float valueV = this.jsliderV.getValue();
+      this.imgH = ((int)(600.0F * (valueV / 100.0F)));
+      if (this.imgH < 75) {
+        this.imgH = 75;
+      }
+      this.dx1 = (this.xcentre - this.imgW / 2);
+      this.dy1 = (this.ycentre - this.imgH / 2);
+      this.dx2 = (this.xcentre + this.imgW / 2);
+      this.dy2 = (this.ycentre + this.imgH / 2);
+      this.canvas.repaint();
+    }
+  }
+
+  public static void main(String[] args) { new Histogram(); }
+
+
+  class MyCanvas extends Canvas
+  {
+    public MyCanvas()
+    {
+    }
+
+    public void paint(Graphics g)
+    {
+      Graphics2D g2 = (Graphics2D)g;
+
+      Histogram.this.sx2 = Histogram.this.img.getWidth(this);
+      Histogram.this.sy2 = Histogram.this.img.getHeight(this);
+      g2.shear(Histogram.this.shx, Histogram.this.shy);
+      g2.drawImage(Histogram.this.img, Histogram.this.dx1, Histogram.this.dy1, Histogram.this.dx2, Histogram.this.dy2, Histogram.this.sx1, Histogram.this.sy1, Histogram.this.sx2, Histogram.this.sy2, this);
+    }
+  }
+}
